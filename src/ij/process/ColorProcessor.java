@@ -694,116 +694,187 @@ public class ColorProcessor extends ImageProcessor {
 
  	final ImageProcessor filterRGB(int type, double arg, double arg2) {
 		showProgress(0.01);
-		byte[] R = new byte[width*height];
-		byte[] G = new byte[width*height];
-		byte[] B = new byte[width*height];
-		getRGB(R, G, B);
-		Rectangle roi = new Rectangle(roiX, roiY, roiWidth, roiHeight);
 		
-		ByteProcessor r = new ByteProcessor(width, height, R, null);
-		r.setRoi(roi);
-		ByteProcessor g = new ByteProcessor(width, height, G, null);
-		g.setRoi(roi);
-		ByteProcessor b = new ByteProcessor(width, height, B, null);
-		b.setRoi(roi);
-		r.setBackgroundValue((bgColor&0xff0000)>>16);
-		g.setBackgroundValue((bgColor&0xff00)>>8);
-		b.setBackgroundValue(bgColor&0xff);
-		r.setInterpolationMethod(interpolationMethod);
-		g.setInterpolationMethod(interpolationMethod);
-		b.setInterpolationMethod(interpolationMethod);
+		FilterRGB filter = new FilterRGB(arg, arg2);
 		
 		showProgress(0.15);
 		switch (type) {
 			case RGB_NOISE:
-				r.noise(arg); showProgress(0.40);
-				g.noise(arg); showProgress(0.65);
-				b.noise(arg); showProgress(0.90);
+				filter.noise();
 				break;
 			case RGB_MEDIAN:
-				r.medianFilter(); showProgress(0.40);
-				g.medianFilter(); showProgress(0.65);
-				b.medianFilter(); showProgress(0.90);
+				filter.median();
 				break;
 			case RGB_FIND_EDGES:
-				r.findEdges(); showProgress(0.40);
-				g.findEdges(); showProgress(0.65);
-				b.findEdges(); showProgress(0.90);
+				filter.findEdges();
 				break;
 			case RGB_ERODE:
-				r.erode(); showProgress(0.40);
-				g.erode(); showProgress(0.65);
-				b.erode(); showProgress(0.90);
+				filter.erode();
 				break;
 			case RGB_DILATE:
-				r.dilate(); showProgress(0.40);
-				g.dilate(); showProgress(0.65);
-				b.dilate(); showProgress(0.90);
+				filter.dilate();
 				break;
 			case RGB_THRESHOLD:
-				r.autoThreshold(); showProgress(0.40);
-				g.autoThreshold(); showProgress(0.65);
-				b.autoThreshold(); showProgress(0.90);
+				filter.threshold();
 				break;
 			case RGB_ROTATE:
-				ij.IJ.showStatus("Rotating red");
-				r.rotate(arg); showProgress(0.40);
-				ij.IJ.showStatus("Rotating green");
-				g.rotate(arg); showProgress(0.65);
-				ij.IJ.showStatus("Rotating blue");
-				b.rotate(arg); showProgress(0.90);
+				filter.rotate();
 				break;
 			case RGB_SCALE:
-				ij.IJ.showStatus("Scaling red");
-				r.scale(arg, arg2); showProgress(0.40);
-				ij.IJ.showStatus("Scaling green");
-				g.scale(arg, arg2); showProgress(0.65);
-				ij.IJ.showStatus("Scaling blue");
-				b.scale(arg, arg2); showProgress(0.90);
+				filter.scale();
 				break;
 			case RGB_RESIZE:
-				int w=(int)arg, h=(int)arg2;
-				ij.IJ.showStatus("Resizing red");
-				ImageProcessor r2 = r.resize(w, h); showProgress(0.40);
-				ij.IJ.showStatus("Resizing green");
-				ImageProcessor g2 = g.resize(w, h); showProgress(0.65);
-				ij.IJ.showStatus("Resizing blue");
-				ImageProcessor b2 = b.resize(w, h); showProgress(0.90);
-				R = (byte[])r2.getPixels();
-				G = (byte[])g2.getPixels();
-				B = (byte[])b2.getPixels();
-				ColorProcessor ip2 = new ColorProcessor(w, h);
-				ip2.setRGB(R, G, B);
-				showProgress(1.0);
-				return ip2;
+				return filter.resize();
 			case RGB_TRANSLATE:
-				ij.IJ.showStatus("Translating red");
-				r.translate(arg, arg2); showProgress(0.40);
-				ij.IJ.showStatus("Translating green");
-				g.translate(arg, arg2); showProgress(0.65);
-				ij.IJ.showStatus("Translating blue");
-				b.translate(arg, arg2); showProgress(0.90);
+				filter.translate();
 				break;
 			case RGB_MIN:
-				r.filter(MIN); showProgress(0.40);
-				g.filter(MIN); showProgress(0.65);
-				b.filter(MIN); showProgress(0.90);
+				filter.min();
 				break;
 			case RGB_MAX:
-				r.filter(MAX); showProgress(0.40);
-				g.filter(MAX); showProgress(0.65);
-				b.filter(MAX); showProgress(0.90);
+				filter.max();
 				break;
 		}
 		
-		R = (byte[])r.getPixels();
-		G = (byte[])g.getPixels();
-		B = (byte[])b.getPixels();
+		filter.compute();
 		
-		setRGB(R, G, B);
 		showProgress(1.0);
 		return null;
 	}
+ 	
+ 	private class FilterRGB {
+ 		
+		private byte[] R;
+		private byte[] G;
+		private byte[] B;
+		private Rectangle roi;
+		private ByteProcessor r, g, b;
+		private double arg, arg2;
+		
+ 		public FilterRGB(double arg, double arg2) {
+			this.arg = arg;
+			this.arg2 = arg2;
+ 			R = new byte[width*height];
+ 			G = new byte[width*height];
+ 			B = new byte[width*height];
+ 			getRGB(R, G, B);
+ 			roi = new Rectangle(roiX, roiY, roiWidth, roiHeight);
+ 			r = new ByteProcessor(width, height, R, null);
+ 			r.setRoi(roi);
+ 			g = new ByteProcessor(width, height, G, null);
+ 			g.setRoi(roi);
+ 			b = new ByteProcessor(width, height, B, null);
+ 			b.setRoi(roi);
+ 			r.setBackgroundValue((bgColor&0xff0000)>>16);
+ 			g.setBackgroundValue((bgColor&0xff00)>>8);
+ 			b.setBackgroundValue(bgColor&0xff);
+ 			r.setInterpolationMethod(interpolationMethod);
+ 			g.setInterpolationMethod(interpolationMethod);
+ 			b.setInterpolationMethod(interpolationMethod);
+ 		}
+ 		
+ 		public void noise() {
+			r.noise(arg); showProgress(0.40);
+			g.noise(arg); showProgress(0.65);
+			b.noise(arg); showProgress(0.90);
+		}
+ 	
+		public void median() {
+			r.medianFilter(); showProgress(0.40);
+			g.medianFilter(); showProgress(0.65);
+			b.medianFilter(); showProgress(0.90);
+		}
+
+		public void findEdges() {
+			r.findEdges(); showProgress(0.40);
+			g.findEdges(); showProgress(0.65);
+			b.findEdges(); showProgress(0.90);
+		}
+
+		public void erode() {
+			r.erode(); showProgress(0.40);
+			g.erode(); showProgress(0.65);
+			b.erode(); showProgress(0.90);
+		}
+
+		public void dilate() {
+			r.dilate(); showProgress(0.40);
+			g.dilate(); showProgress(0.65);
+			b.dilate(); showProgress(0.90);
+		}
+
+		public void threshold() {
+			r.autoThreshold(); showProgress(0.40);
+			g.autoThreshold(); showProgress(0.65);
+			b.autoThreshold(); showProgress(0.90);
+		}
+
+ 		
+ 		public void rotate() {
+			ij.IJ.showStatus("Rotating red");
+			r.rotate(arg); showProgress(0.40);
+			ij.IJ.showStatus("Rotating green");
+			g.rotate(arg); showProgress(0.65);
+			ij.IJ.showStatus("Rotating blue");
+			b.rotate(arg); showProgress(0.90);
+ 		}
+ 		
+ 		public ColorProcessor resize() {
+			int w=(int)arg, h=(int)arg2;
+			ij.IJ.showStatus("Resizing red");
+			ImageProcessor r2 = r.resize(w, h); showProgress(0.40);
+			ij.IJ.showStatus("Resizing green");
+			ImageProcessor g2 = g.resize(w, h); showProgress(0.65);
+			ij.IJ.showStatus("Resizing blue");
+			ImageProcessor b2 = b.resize(w, h); showProgress(0.90);
+			R = (byte[])r2.getPixels();
+			G = (byte[])g2.getPixels();
+			B = (byte[])b2.getPixels();
+			ColorProcessor ip2 = new ColorProcessor(w, h);
+			ip2.setRGB(R, G, B);
+			showProgress(1.0);
+			return ip2;
+ 		}
+ 		
+ 		public void scale() {
+			ij.IJ.showStatus("Scaling red");
+			r.scale(arg, arg2); showProgress(0.40);
+			ij.IJ.showStatus("Scaling green");
+			g.scale(arg, arg2); showProgress(0.65);
+			ij.IJ.showStatus("Scaling blue");
+			b.scale(arg, arg2); showProgress(0.90);
+ 		}
+ 		
+ 		public void translate() {
+			ij.IJ.showStatus("Translating red");
+			r.translate(arg, arg2); showProgress(0.40);
+			ij.IJ.showStatus("Translating green");
+			g.translate(arg, arg2); showProgress(0.65);
+			ij.IJ.showStatus("Translating blue");
+			b.translate(arg, arg2); showProgress(0.90);
+ 		}
+ 		
+ 		
+ 		public void min() {
+			r.filter(MIN); showProgress(0.40);
+			g.filter(MIN); showProgress(0.65);
+			b.filter(MIN); showProgress(0.90);
+ 		}
+ 		
+ 		public void max() {
+			r.filter(MAX); showProgress(0.40);
+			g.filter(MAX); showProgress(0.65);
+			b.filter(MAX); showProgress(0.90);
+ 		}
+ 		
+ 		public void compute() {
+ 			R = (byte[])r.getPixels();
+ 			G = (byte[])g.getPixels();
+ 			B = (byte[])b.getPixels();
+ 			
+ 			setRGB(R, G, B);
+ 		}
+ 	}
 
 	public void noise(double range) {
 		filterRGB(RGB_NOISE, range);

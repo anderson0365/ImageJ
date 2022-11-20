@@ -818,29 +818,38 @@ public abstract class ImageProcessor implements Cloneable {
 	public void setRoi(int x, int y, int rwidth, int rheight) {
 		if (x<0 || y<0 || x+rwidth>width || y+rheight>height) {
 			//find intersection of roi and this image
-			Rectangle r1 = new Rectangle(x, y, rwidth, rheight);
-			Rectangle r2 = r1.intersection(new Rectangle(0, 0, width, height));
-			if (r2.width<=0 || r2.height<=0) {
-				roiX=0; roiY=0; roiWidth=0; roiHeight=0;
-				xMin=0; xMax=0; yMin=0; yMax=0;
-				mask=null;
-				return;
-			}
-			if (mask!=null && mask.getWidth()==rwidth && mask.getHeight()==rheight) {
-				Rectangle r3 = new Rectangle(0, 0, r2.width, r2.height);
-				if (x<0) r3.x = -x;
-				if (y<0) r3.y = -y;
-				mask.setRoi(r3);
-				if (mask!=null)
-					mask = mask.crop();
-			}
-			roiX=r2.x; roiY=r2.y; roiWidth=r2.width; roiHeight=r2.height;
+			findRoiImageIntersection(x, y, rwidth, rheight); 
 		} else {
 			roiX=x; roiY=y; roiWidth=rwidth; roiHeight=rheight;
 		}
 		if (mask!=null && (mask.getWidth()!=roiWidth||mask.getHeight()!=roiHeight))
 			mask = null;
 		//setup limits for 3x3 filters
+		set3x3FilterLimits();
+	}
+	
+	private void findRoiImageIntersection(int x, int y, int rwidth, int rheight) {
+		//find intersection of roi and this image
+		Rectangle r1 = new Rectangle(x, y, rwidth, rheight);
+		Rectangle r2 = r1.intersection(new Rectangle(0, 0, width, height));
+		if (r2.width<=0 || r2.height<=0) {
+			roiX=0; roiY=0; roiWidth=0; roiHeight=0;
+			xMin=0; xMax=0; yMin=0; yMax=0;
+			mask=null;
+			return;
+		}
+		if (mask!=null && mask.getWidth()==rwidth && mask.getHeight()==rheight) {
+			Rectangle r3 = new Rectangle(0, 0, r2.width, r2.height);
+			if (x<0) r3.x = -x;
+			if (y<0) r3.y = -y;
+			mask.setRoi(r3);
+			if (mask!=null)
+				mask = mask.crop();
+		}
+		roiX=r2.x; roiY=r2.y; roiWidth=r2.width; roiHeight=r2.height;
+	}
+	
+	private void set3x3FilterLimits() {
 		xMin = Math.max(roiX, 1);
 		xMax = Math.min(roiX + roiWidth - 1, width - 2);
 		yMin = Math.max(roiY, 1);
@@ -1231,6 +1240,8 @@ public abstract class ImageProcessor implements Cloneable {
 			y += yinc;
 		}
 	}
+	
+	
 
 	/** Draws a line from (x1,y1) to (x2,y2). */
 	public void drawLine(int x1, int y1, int x2, int y2) {
@@ -2682,70 +2693,107 @@ public abstract class ImageProcessor implements Cloneable {
 			makeDefaultColorModel();
 		if (reds==null || cm!=cm2)
 			updateLutBytes();
+		
+		updateCompositeModeSelection(rgbPixels, mode);
+		lutAnimation = false;
+	}
+	
+	private void updateCompositeModeSelection(int[] rgbPixels, int mode) {
 		switch (mode) {
 			case UPDATE_RED: // update red channel
-				for (int i=0; i<size; i++)
-					rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | (reds[bytes[i]&0xff]);
+				updateCompositeModeUpdateRed(rgbPixels);
 				break;
 			case UPDATE_GREEN: // update green channel
-				for (int i=0; i<size; i++)
-					rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | (greens[bytes[i]&0xff]);
+				updateCompositeModeUpdateGreen(rgbPixels);
 				break;
 			case UPDATE_BLUE: // update blue channel
-				for (int i=0; i<size; i++)
-					rgbPixels[i] = (rgbPixels[i]&0xffffff00) | blues[bytes[i]&0xff];
+				 updateCompositeModeSetFirstChannel(rgbPixels);
 				break;
 			case SET_FIRST_CHANNEL:
-				for (int i=0; i<size; i++) {
-					int index = bytes[i]&0xff;
-					rgbPixels[i] = reds[index] | greens[index] | blues[index];
-				}
+				updateCompositeModeSetFirstChannel(rgbPixels);
 				break;
 			case SUM_PROJECTION:
-				for (int i=0; i<size; i++) {
-					int pixel = rgbPixels[i];
-					redValue = (pixel&0x00ff0000) + reds[bytes[i]&0xff];
-					greenValue = (pixel&0x0000ff00) + greens[bytes[i]&0xff];
-					blueValue = (pixel&0x000000ff) + blues[bytes[i]&0xff];
-					if (redValue>16711680) redValue = 16711680;
-					if (greenValue>65280) greenValue = 65280;
-					if (blueValue>255) blueValue = 255;
-					rgbPixels[i] = redValue | greenValue | blueValue;
-				}
+				updateCompositeModeSumProjection(rgbPixels);
 				break;
 			case MAX_PROJECTION:
-				for (int i=0; i<size; i++) {
-					int pixel = rgbPixels[i];
-					int index = bytes[i]&0xff;
-					redValue = reds[index]&0x00ff0000;
-					if (redValue>(pixel&0x00ff0000))
-						rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | redValue;
-					greenValue = greens[index]&0x0000ff00;
-					if (greenValue>(pixel&0x0000ff00))
-						rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | greenValue;
-					blueValue = blues[index]&0xff;
-					if (blueValue>(pixel&0xff))
-						rgbPixels[i] = (rgbPixels[i]&0xffffff00) | blueValue;
-				}
+				updateCompositeModeMaxProjection(rgbPixels);
 				break;
 			case MIN_PROJECTION: 
-				int pixel;
-				for (int i=0; i<size; i++) {
-					pixel = rgbPixels[i];
-					int index = bytes[i]&0xff;
-					redValue = reds[index]&0x00ff0000;
-					if (redValue<(pixel&0x00ff0000))
-						rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | redValue;
-					greenValue = greens[index]&0x0000ff00;
-					if (greenValue<(pixel&0x0000ff00))
-						rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | greenValue;
-					blueValue = blues[index]&0xff;
-					if (blueValue<(pixel&0xff))
-						rgbPixels[i] = (rgbPixels[i]&0xffffff00) | blueValue;
-				}
+				updateCompositeMinProjection(rgbPixels);
 				break;
 		}
-		lutAnimation = false;
+	}
+	
+	private void updateCompositeModeUpdateRed(int[] rgbPixels) {
+		int size = width*height;
+		for (int i=0; i<size; i++)
+			rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | (reds[bytes[i]&0xff]);
+	}
+	
+	private void updateCompositeModeUpdateGreen(int[] rgbPixels) {
+		int size = width*height;
+		for (int i=0; i<size; i++)
+			rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | (greens[bytes[i]&0xff]);
+	}
+	
+	private void updateCompositeModeSetFirstChannel(int[] rgbPixels) {
+		int size = width*height;
+		for (int i=0; i<size; i++) {
+			int index = bytes[i]&0xff;
+			rgbPixels[i] = reds[index] | greens[index] | blues[index];
+		}
+	}
+	
+	private void updateCompositeModeSumProjection(int[] rgbPixels) {
+		int redValue, greenValue, blueValue;
+		int size = width*height;
+		for (int i=0; i<size; i++) {
+			int pixel = rgbPixels[i];
+			redValue = (pixel&0x00ff0000) + reds[bytes[i]&0xff];
+			greenValue = (pixel&0x0000ff00) + greens[bytes[i]&0xff];
+			blueValue = (pixel&0x000000ff) + blues[bytes[i]&0xff];
+			if (redValue>16711680) redValue = 16711680;
+			if (greenValue>65280) greenValue = 65280;
+			if (blueValue>255) blueValue = 255;
+			rgbPixels[i] = redValue | greenValue | blueValue;
+		}
+	}
+	
+	private void updateCompositeModeMaxProjection(int[] rgbPixels) {
+		int redValue, greenValue, blueValue;
+		int size = width*height;
+		for (int i=0; i<size; i++) {
+			int pixel = rgbPixels[i];
+			int index = bytes[i]&0xff;
+			redValue = reds[index]&0x00ff0000;
+			if (redValue>(pixel&0x00ff0000))
+				rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | redValue;
+			greenValue = greens[index]&0x0000ff00;
+			if (greenValue>(pixel&0x0000ff00))
+				rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | greenValue;
+			blueValue = blues[index]&0xff;
+			if (blueValue>(pixel&0xff))
+				rgbPixels[i] = (rgbPixels[i]&0xffffff00) | blueValue;
+		}
+	}
+	
+	private void updateCompositeMinProjection(int[] rgbPixels) {
+		int redValue, greenValue, blueValue;
+		int size = width*height;
+		int pixel;
+		for (int i=0; i<size; i++) {
+			pixel = rgbPixels[i];
+			int index = bytes[i]&0xff;
+			redValue = reds[index]&0x00ff0000;
+			if (redValue<(pixel&0x00ff0000))
+				rgbPixels[i] = (rgbPixels[i]&0xff00ffff) | redValue;
+			greenValue = greens[index]&0x0000ff00;
+			if (greenValue<(pixel&0x0000ff00))
+				rgbPixels[i] = (rgbPixels[i]&0xffff00ff) | greenValue;
+			blueValue = blues[index]&0xff;
+			if (blueValue<(pixel&0xff))
+				rgbPixels[i] = (rgbPixels[i]&0xffffff00) | blueValue;
+		}
 	}
 
 	// method and variables used by updateComposite()

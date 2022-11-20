@@ -6,7 +6,7 @@ import ij.*;
 import ij.plugin.*;
 
 /**  This is a non-modal dialog that plugins can extend. */
-public class PlugInDialog extends Dialog implements PlugIn, WindowListener, FocusListener {
+public class PlugInDialog extends Dialog implements CommonPlugInDialogFrameInterface {
 
 	public PlugInDialog(String title) {
 		super(IJ.isMacOSX()?IJ.getInstance():null,title);
@@ -26,22 +26,13 @@ public class PlugInDialog extends Dialog implements PlugIn, WindowListener, Focu
 		}
 	}
 	
-	public void run(String arg) {
-	}
-	
     public void windowClosing(WindowEvent e) {
-    	if (e.getSource()==this) {
-    		close();
-    		if (Recorder.record)
-    			Recorder.record("run", "Close");
-    	}
+    	commonWindowClosing(e, this);
     }
     
     /** Closes this window. */
     public void close() {
-		//setVisible(false);
-		dispose();
-		WindowManager.removeWindow(this);
+    	commonClose(this);
     }
 
 	public void windowActivated(WindowEvent e) {
@@ -51,11 +42,5 @@ public class PlugInDialog extends Dialog implements PlugIn, WindowListener, Focu
 	public void focusGained(FocusEvent e) {
 		WindowManager.setWindow(this);
 	}
-
-    public void windowOpened(WindowEvent e) {}
-    public void windowClosed(WindowEvent e) {}
-    public void windowIconified(WindowEvent e) {}
-    public void windowDeiconified(WindowEvent e) {}
-    public void windowDeactivated(WindowEvent e) {}
-	public void focusLost(FocusEvent e) {}
+	
 }

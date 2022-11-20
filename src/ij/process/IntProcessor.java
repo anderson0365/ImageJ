@@ -6,7 +6,7 @@ import java.awt.image.*;
 
 
 /** This is an extended ColorProcessor that supports signed 32-bit int images. */
-public class IntProcessor extends ColorProcessor {
+public class IntProcessor extends ColorProcessor implements CommonIntShortProcessInterface  {
 	private byte[] pixels8;
 
 	/**Creates a blank IntProcessor with the specified dimensions. */
@@ -23,41 +23,44 @@ public class IntProcessor extends ColorProcessor {
 	/** Create an 8-bit AWT image by scaling pixels in the range min-max to 0-255. */
 	@Override
 	public Image createImage() {
-		if (!minMaxSet)
-			findMinAndMax();
-		boolean firstTime = pixels8==null;
-		boolean thresholding = minThreshold!=NO_THRESHOLD && lutUpdateMode<NO_LUT_UPDATE;
-		//ij.IJ.log("createImage: "+firstTime+"  "+lutAnimation+"  "+thresholding);
-		if (firstTime || !lutAnimation)
-			create8BitImage(thresholding&&lutUpdateMode==RED_LUT);
-		if (cm==null)
-			makeDefaultColorModel();
-		if (thresholding) {
-			int t1 = (int)minThreshold;
-			int t2 = (int)maxThreshold;
-			int size = width*height;
-			int value;
-			if (lutUpdateMode==BLACK_AND_WHITE_LUT) {
-				for (int i=0; i<size; i++) {
-					value = (pixels[i]&0xffff);
-					if (value>=t1 && value<=t2)
-						pixels8[i] = (byte)255;
-					else
-						pixels8[i] = (byte)0;
-				}
-			} else { // threshold red
-				for (int i=0; i<size; i++) {
-					value = (pixels[i]&0xffff);
-					if (value>=t1 && value<=t2)
-						pixels8[i] = (byte)255;
-				}
-			}
+		return commonCreateImage(this);
+	}
+	
+	Image createBufferedImage() {
+		return commonCreateBufferedImage(this);
+	}
+	
+	public void findMinAndMax() {
+		int size = width*height;
+		int value;
+		int min = pixels[0];
+		int max = pixels[0];
+		for (int i=1; i<size; i++) {
+			value = pixels[i];
+			if (value<min)
+				min = value;
+			else if (value>max)
+				max = value;
 		}
-		return createBufferedImage();
+		this.min = min;
+		this.max = max;
+		minMaxSet = true;
+	}
+	
+	public int getPixels(int index) {
+		return pixels[index];
+	}
+	
+	public byte getPixels8(int index) {
+		return pixels8[index];
+	}
+	
+	public byte[] getPixels8() {
+		return pixels8;
 	}
 	
 	// creates 8-bit image by linearly scaling from float to 8-bits
-	private byte[] create8BitImage(boolean thresholding) {
+	public byte[] create8BitImage(boolean thresholding) {
 		int size = width*height;
 		if (pixels8==null)
 			pixels8 = new byte[size];
@@ -80,21 +83,6 @@ public class IntProcessor extends ColorProcessor {
 	@Override
 	byte[] create8BitImage() {
 		return create8BitImage(false);
-	}
-
-	Image createBufferedImage() {
-		if (raster==null) {
-			SampleModel sm = getIndexSampleModel();
-			DataBuffer db = new DataBufferByte(pixels8, width*height, 0);
-			raster = Raster.createWritableRaster(sm, db, null);
-		}
-		if (image==null || cm!=cm2) {
-			if (cm==null) cm = getDefaultColorModel();
-			image = new BufferedImage(cm, raster, false, null);
-			cm2 = cm;
-		}
-		lutAnimation = false;
-		return image;
 	}
 
 	/** Returns this image as an 8-bit BufferedImage . */
@@ -129,22 +117,6 @@ public class IntProcessor extends ColorProcessor {
 		return 1;
 	}
 	
-	public void findMinAndMax() {
-		int size = width*height;
-		int value;
-		int min = pixels[0];
-		int max = pixels[0];
-		for (int i=1; i<size; i++) {
-			value = pixels[i];
-			if (value<min)
-				min = value;
-			else if (value>max)
-				max = value;
-		}
-		this.min = min;
-		this.max = max;
-		minMaxSet = true;
-	}
 
 	@Override
 	public void resetMinAndMax() {

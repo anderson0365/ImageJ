@@ -5,7 +5,7 @@ import ij.*;
 import ij.plugin.*;
 
 /**  This is a closeable window that plugins can extend. */
-public class PlugInFrame extends Frame implements PlugIn, WindowListener, FocusListener {
+public class PlugInFrame extends Frame implements CommonPlugInDialogFrameInterface {
 
 	String title;
 	
@@ -24,22 +24,13 @@ public class PlugInFrame extends Frame implements PlugIn, WindowListener, FocusL
 		}
 	}
 	
-	public void run(String arg) {
-	}
-	
     public void windowClosing(WindowEvent e) {
-    	if (e.getSource()==this) {
-    		close();
-    		if (Recorder.record)
-    			Recorder.record("run", "Close");
-    	}
+    	commonWindowClosing(e, this);
     }
     
     /** Closes this window. */
     public void close() {
-		//setVisible(false);
-		dispose();
-		WindowManager.removeWindow(this);
+    	commonClose(this);
     }
 
     public void windowActivated(WindowEvent e) {
@@ -53,11 +44,4 @@ public class PlugInFrame extends Frame implements PlugIn, WindowListener, FocusL
 	public void focusGained(FocusEvent e) {
 		WindowManager.setWindow(this);
 	}
-
-    public void windowOpened(WindowEvent e) {}
-    public void windowClosed(WindowEvent e) {}
-    public void windowIconified(WindowEvent e) {}
-    public void windowDeiconified(WindowEvent e) {}
-    public void windowDeactivated(WindowEvent e) {}
-	public void focusLost(FocusEvent e) {}
 }

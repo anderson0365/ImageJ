@@ -3,6 +3,7 @@ import java.awt.*;
 import java.util.Vector;
 
 import ij.plugin.Colors;
+import ij.plugin.PlugIn;
 
 /** This plugin implements the Edit/Options/Roi Defaults command. */
 public class RoiDefaultsDialog implements PlugIn, DialogListener {

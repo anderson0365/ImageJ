@@ -152,23 +152,27 @@ public class CompositeImage extends ImagePlus {
 				ip.resetMinAndMax();
 			lut = new LUT[channels];
 			LUT lut2 = channels>MAX_CHANNELS?createLutFromColor(Color.white):null;
-			for (int i=0; i<channels; ++i) {
-				if (channelLuts!=null && i<channelLuts.length) {
-					lut[i] = createLutFromBytes(channelLuts[i]);
-					customLuts = true;
-				} else if (i<MAX_CHANNELS)
-					lut[i] = createLutFromColor(colors[i]);
-				else
-					lut[i] = (LUT)lut2.clone();
-				if (displayRanges!=null) {
-					lut[i].min = displayRanges[i*2];
-					lut[i].max = displayRanges[i*2+1];
-				} else {
-					lut[i].min = ip.getMin();
-					lut[i].max = ip.getMax();
-				}
-			}
+			loopLuts(channels, lut2);
 			displayRanges = null;
+		}
+	}
+	
+	private void loopLuts(int channels, LUT lut2) {
+		for (int i=0; i<channels; ++i) {
+			if (channelLuts!=null && i<channelLuts.length) {
+				lut[i] = createLutFromBytes(channelLuts[i]);
+				customLuts = true;
+			} else if (i<MAX_CHANNELS)
+				lut[i] = createLutFromColor(colors[i]);
+			else
+				lut[i] = (LUT)lut2.clone();
+			if (displayRanges!=null) {
+				lut[i].min = displayRanges[i*2];
+				lut[i].max = displayRanges[i*2+1];
+			} else {
+				lut[i].min = ip.getMin();
+				lut[i].max = ip.getMax();
+			}
 		}
 	}
 	
@@ -367,12 +371,17 @@ public class CompositeImage extends ImagePlus {
 			}
 		} 
 		      			
-		int value;
+		int value = 0;
 		int[] v = new int[nChn];
 		int[] r = new int[nChn]; int[] g = new int[nChn]; int[] b = new int[nChn];
-		int sumR, sumG, sumB;
-		int newR, newG, newB;
-		
+		int sumR = 0, sumG = 0, sumB = 0;
+		int newR = 0, newG = 0, newB = 0;
+		loopInvertedComposite(w, h, nChn, in8, in16, in32, mins, scale, sumR, sumG, sumB, newR, newG, newB, value, luts, nChnActive, v, r, g, b, chnActive);
+    }
+	
+	private void loopInvertedComposite(int w, int h, int nChn, byte[][] in8, short[][] in16, float[][] in32, 
+			double[] mins, double[] scale, int sumR, int sumG, int sumB, int newR, int newG, int newB, 
+			int value, LUT[] luts, int nChnActive, int[] v, int[] r, int[] g, int[] b, boolean[] chnActive) {
 		for (int idx=0; idx<w*h; idx++) {
 			for (int c=0; c<nChn; c++){
 				switch (bitDepth) {
@@ -405,8 +414,8 @@ public class CompositeImage extends ImagePlus {
 			newB = Math.max(newB, 0);
 			value = newR*256*256 + newG*256 + newB;
 			rgbPixels[idx] = value;
-		}   
-    }
+		} 
+	}
        
 	void createImage() {
 		if (imageSource==null) {
@@ -517,6 +526,13 @@ public class CompositeImage extends ImagePlus {
 		if (this.mode!=COMPOSITE && mode==COMPOSITE)
 			img = null;
 		this.mode = mode;
+		setupMode();
+		if (mode==GRAYSCALE || mode==TRANSPARENT)
+			ip.setColorModel(ip.getDefaultColorModel());
+		Channels.updateChannels();
+	}
+	
+	private synchronized void setupMode() {
 		if (mode==COLOR || mode==GRAYSCALE) {
 			if (cip!=null) {
 				for (int i=0; i<cip.length; i++) {
@@ -529,9 +545,6 @@ public class CompositeImage extends ImagePlus {
 			awtImage = null;
 			currentChannel = -1;
 		}
-		if (mode==GRAYSCALE || mode==TRANSPARENT)
-			ip.setColorModel(ip.getDefaultColorModel());
-		Channels.updateChannels();
 	}
 
 	public int getMode() {

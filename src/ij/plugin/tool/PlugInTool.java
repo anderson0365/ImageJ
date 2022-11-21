@@ -1,6 +1,5 @@
 package ij.plugin.tool;
 import ij.ImagePlus;
-import ij.plugin.PlugIn;
 import ij.macro.Program;
 import ij.gui.Toolbar;
 import java.awt.event.*;

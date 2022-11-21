@@ -464,57 +464,17 @@ public class Orthogonal_Views implements PlugIn, MouseListener, MouseMotionListe
 	}
 	
 	void updateYZView(Point p, ImageStack is) {
-		int width= is.getWidth();
-		int height=is.getHeight();
-		int ds=is.getSize();
-		ImageProcessor ip=is.getProcessor(1);
-		int x=p.x;
-		
-		if (ip instanceof FloatProcessor) {
-			float[] newpix=new float[ds*height];
-			for (int i=0;i<ds; i++) { 
-				float[] pixels= (float[]) is.getPixels(i+1);//toFloatPixels(pixels);
-				for (int j=0;j<height;j++)
-					newpix[(ds-i-1)*height + j] = pixels[x + j* width];
-			}
-			fp2.setPixels(newpix);
-		}
-		
-		if (ip instanceof ByteProcessor) {
-			byte[] newpix=new byte[ds*height];
-			for (int i=0;i<ds; i++) { 
-				byte[] pixels= (byte[]) is.getPixels(i+1);//toFloatPixels(pixels);
-				for (int j=0;j<height;j++)
-					newpix[(ds-i-1)*height + j] = pixels[x + j* width];
-			}
-			fp2.setPixels(newpix);
-		}
-		
-		if (ip instanceof ShortProcessor) {
-			short[] newpix=new short[ds*height];
-			for (int i=0;i<ds; i++) { 
-				short[] pixels= (short[]) is.getPixels(i+1);//toFloatPixels(pixels);
-				for (int j=0;j<height;j++)
-					newpix[(ds-i-1)*height + j] = pixels[x + j* width];
-			}
-			fp2.setPixels(newpix);
-		}
-		
-		if (ip instanceof ColorProcessor) {
-			int[] newpix=new int[ds*height];
-			for (int i=0;i<ds; i++) { 
-				int[] pixels= (int[]) is.getPixels(i+1);//toFloatPixels(pixels);
-				for (int j=0;j<height;j++)
-					newpix[(ds-i-1)*height + j] = pixels[x + j* width];
-			}
-			fp2.setPixels(newpix);
-		}
+		updateXYZValues(p, is);
 		if (!flipXZ)
 			fp2.flipVertical();
 		
 	}
 	
 	void updateZYView(Point p, ImageStack is) {
+		updateXYZValues(p, is);
+	}
+	
+	private void updateXYZValues(Point p, ImageStack is) {
 		int width= is.getWidth();
 		int height=is.getHeight();
 		int ds=is.getSize();
@@ -560,7 +520,6 @@ public class Orthogonal_Views implements PlugIn, MouseListener, MouseMotionListe
 			}
 			fp2.setPixels(newpix);
 		}
-		
 	}
 	 
 	/** draws the crosses in the images */
